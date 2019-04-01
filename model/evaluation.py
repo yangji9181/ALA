@@ -4,6 +4,9 @@ import networkx as nx
 from scipy.special import expit
 from sklearn.metrics import f1_score, accuracy_score
 
+import torch
+import torch.nn as nn
+
 def prepare(G, ratio):
     
     num_hidden = int(len(G.edges())*ratio)
@@ -45,7 +48,8 @@ def prepare(G, ratio):
 
 def lp_evaluate(embeddings, prediction_links):
     
-    pred = np.array([np.inner(embeddings[each[0]], embeddings[each[1]]) for each in prediction_links])
+    cos = nn.CosineSimilarity()
+    pred = cos(embeddings[prediction_links[:,0]], embeddings[prediction_links[:,1]]).detach().cpu().numpy()
     pred = expit(pred)>0.5
     labels = prediction_links[:,2]
     f1, accuracy = f1_score(labels, pred), accuracy_score(labels, pred)

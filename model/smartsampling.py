@@ -21,6 +21,7 @@ class SmartSampling(nn.Module):
         self.all_nodes = list(G.nodes())
         self.nsamplers = nsamplers
         self.device = device
+        self.pdist = nn.PairwiseDistance()
         
         text_dim, emb_dim = len(text_features[0]), len(emb_features[0])
         self.Storage = Storage(nnodes=nnodes, text_features=text_features, emb_features=emb_features, device=device)
@@ -68,9 +69,9 @@ class SmartSampling(nn.Module):
             self.sage_optimizer.zero_grad()            
             
             new_embs, old_embs, distances = self.forward()
-            gains = torch.stack([F.mse_loss(new_emb, old_emb) for new_emb, old_emb in zip(new_embs, old_embs)])
+            gains = self.pdist(new_embs, old_embs)
 
-            sage_loss = -gains.sum()
+            sage_loss = -torch.mean(gains)
             sage_loss.backward()
             self.sage_optimizer.step()
             
@@ -94,7 +95,7 @@ class SmartSampling(nn.Module):
             del self.Policy.log_probs_c[:]
             
             if epoch%20==0:
-                print("Epoch: {}, Gain: {:.4f}, Time: {:.4f}s".format(epoch, gains.sum().item(), time.time()-t))
+                print("Epoch: {}, Gain: {:.4f}, Time: {:.4f}s".format(epoch, -sage_loss.item(), time.time()-t))
                 t = time.time() 
                 
         return self.Storage.emb_features
