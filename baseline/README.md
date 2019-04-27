@@ -16,7 +16,7 @@ node_features.csv, link.csv, eval.txt
 This project is based on ```python>=3.6``` and ```pytorch>=0.4```. 
 
 # Baselines:
-1. ###GraphSage
+1. #### GraphSage
 ---------------
 
 - Code from ```https://github.com/JieyuZ2/RELEARN```
