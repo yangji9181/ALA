@@ -92,6 +92,11 @@ sh train_planetoid.sh
 
 - Code from ```https://github.com/thunlp/CANE.git```
 
+Example Command:
+```
+python3 run.py --dataset cora --gpu 0  --ratio 0.55 --rho 1.0,0.3,0.3
+```
+
 6. #### STNE
 
 - Code from original authors, and contained in zip.
