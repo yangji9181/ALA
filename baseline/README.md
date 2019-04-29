@@ -1,14 +1,15 @@
 # graph_sample
 
-This repo contains baseline informations for unsupervised network embedding methods.
+- This repo contains baseline instructions for unsupervised network embedding methods.
+- Author: Xingyu Fu
+- Contact: xingyuf2@illinois.edu
 
 #Data Used
 - dblp
 - cora
 
-# Required Inputs
----------------
-node_features.csv, link.csv, eval.txt
+# Example Inputs
+Shown in folder ```data/cora/```
 
 # Dependencies
 ---------------
@@ -57,17 +58,45 @@ python eval.py --type lp --embedding_file ../data/dblp/embed/tadw_dblp_vec.txt -
 
 3. #### GAT
 
-- Author: Xingyu Fu
-- Contact: xingyuf2@illinois.edu
+- Code from ```Xingyu Fu```
+- Contact: ```xingyuf2@illinois.edu```
 
 Example Command for Label Propagation: 
 ```
-python GAT.py --dataset ../../data/cora/ --eval_file ../../data/cora/eval/rel.txt --sample_size 2000
+cd src
 
-python graphsage.py --dataset ../../data/dblp/ --eval_file ../../data/dblp/eval/rel.txt
+python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt --sample_size 2000
+
+python GAT.py --dataset ../data/dblp/ --eval_file ../data/dblp/eval/rel.txt --sample_size 2000
 ```
 
 Example Command for Node Classification: 
 ```
-python graphsage.py --dataset ../../data/cora/ --eval_file ../../data/cora/eval/label.txt
+cd src
+
+python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/label.txt
+```
+
+4. #### planetoid
+
+- Code from ```Haonan Wang```
+- Contact: ```haonanw2@illinois.edu```
+
+Example Command:
+```
+cd planetoid_edge
+sh train_planetoid.sh
+```
+
+5. #### CANE
+
+- Code from ```https://github.com/thunlp/CANE.git```
+
+6. #### STNE
+
+- Code from original authors, and contained in zip.
+
+Example Command:
+```
+python main.py
 ```
