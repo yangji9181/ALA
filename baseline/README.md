@@ -1,22 +1,38 @@
-# graph_sample
+# Graph_Sample
 
 - This repo contains baseline instructions for unsupervised network embedding methods.
 - Author: Xingyu Fu
 - Contact: xingyuf2@illinois.edu
 
-#Data Used
+## Data Used
 - dblp
 - cora
 
-# Example Inputs
-Shown in folder ```data/cora/```
+## Example Inputs
+Examples are shown in folder ```data/cora/```.
 
-# Dependencies
----------------
+`eval/label.txt` contains labels of graph nodes for evaluation.
+`eval/rel.txt` contains graph links that are extracted to be test data.
+`edgelist.txt` are input graph links for embedding learning.
+
+## Evaluation Methods
+#### Link Prediction
+Learned embeddings for every two nodes are concatenated and passed through a set of layers: fully connected layer + RELU + fully connected layer, and returns accuracy and f1 score.
+
+#### Node Classification
+Learned embeddings for a graph node is passed into a multi-label classifier. Specifically, it's a OneVSRest Classifier using logistic regression.
+
+
+## Supervised methods -> Unsupervised setting
+- Node classification loss in the supervised methods has been changed to link prediction loss using the aformentioned prediction structure.
+
+## Dependencies
+
 
 This project is based on ```python>=3.6``` and ```pytorch>=0.4```. 
 
-# Baselines:
+
+## Baselines:
 1. #### GraphSage
 ---------------
 
@@ -26,14 +42,16 @@ Input file needed: node_features_train.csv, link.csv, eval_rel.txt or eval/label
 
 Example Command for Label Propagation: 
 ```
-python graphsage.py --dataset ../../data/cora/ --eval_file ../../data/cora/eval/rel.txt
+cd src
+python graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt
 
-python graphsage.py --dataset ../../data/dblp/ --eval_file ../../data/dblp/eval/rel.txt
+python graphsage.py --dataset ../data/dblp/ --eval_file ../data/dblp/eval/rel.txt
 ```
 
 Example Command for Node Classification: 
 ```
-python graphsage.py --dataset ../../data/cora/ --eval_file ../../data/cora/eval/label.txt
+cd src
+python graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/label.txt
 ```
 
 2. #### TADW
@@ -41,19 +59,17 @@ python graphsage.py --dataset ../../data/cora/ --eval_file ../../data/cora/eval/
 
 - Code from ```https://github.com/thunlp/OpenNE```
 
-
-Example Command for Node Classification: 
+- After installing OpenNE, example Command for learning embeddings is: 
 ```
-python -m openne --method tadw --label-file ../data/cora/labels.txt --input ../data/cora/edgelist.txt --graph-format edgelist --feature-file ../data/cora/features.txt --representation-size 100 --epochs 200 --output ../data/cora/embed/tadw_cora_vec.txt --clf-ratio 0.1
-
-python -m openne --method tadw --input ../data/dblp/edgelist.txt --graph-format edgelist --feature-file ../data/dblp/features.txt --label-file ../data/dblp/eval/fake-label.txt --representation-size 100 --epochs 500 --output ../data/dblp/embed/tadw_dblp_vec.txt
+python -m openne --method tadw --input ../data/cora/edgelist.txt --graph-format edgelist --feature-file ../data/cora/features.txt --label-file ../data/cora/labels.txt --representation-size 100 --epochs 200 --output ../data/cora/embed/tadw_cora_vec.txt --clf-ratio 0.1
 ```
+Here, the input label file is not important and output is path to the learned embedding. Then, we perform evaluation on learned embeddings.
 
-Example Command for Label Propagation: 
+
+- Example Command for Node Classification & Example Command for Label Propagation respectively: 
 ```
+python eval.py --type nc --embedding_file ../data/cora/embed/tadw_cora_vec.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/labels.txt
 python eval.py --type lp --embedding_file ../data/cora/embed/tadw_cora_vec.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt
-
-python eval.py --type lp --embedding_file ../data/dblp/embed/tadw_dblp_vec.txt --dataset ../data/dblp/ --eval_file ../data/dblp/eval/rel.txt
 ```
 
 3. #### GAT
@@ -64,16 +80,12 @@ python eval.py --type lp --embedding_file ../data/dblp/embed/tadw_dblp_vec.txt -
 Example Command for Label Propagation: 
 ```
 cd src
-
 python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt --sample_size 2000
-
-python GAT.py --dataset ../data/dblp/ --eval_file ../data/dblp/eval/rel.txt --sample_size 2000
 ```
 
 Example Command for Node Classification: 
 ```
 cd src
-
 python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/label.txt
 ```
 
