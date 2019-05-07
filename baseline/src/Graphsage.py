@@ -1,8 +1,3 @@
-"""
-Author: Xingyu Fu
-Email: xingyuf2@illinois.edu
-"""
-
 from __future__ import division
 from __future__ import print_function
 
@@ -15,33 +10,31 @@ import time
 import argparse
 import pickle
 import gensim
-import glob
-import random
 
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
 
 sys.path.append('../')
 # os.chdir('..')
 
-from src.models import GAT, SpGAT, MLP
+from src.models import GCNBaseline, MLP
 from src.utils import print_config, save_checkpoint, save_embedding, construct_feature
-from src.dataset import SupDataset, EvaDataset
+from src.dataset import Dataset, EvaDataset
 from src.logger import myLogger
 from sklearn.metrics import f1_score
-
 
 
 def parse_args():
     # general settings
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='../data/dblp/',
+    parser.add_argument('--dataset', default='../data/cora/',
                         help='dataset name.')
-    parser.add_argument('--eval_file', type=str, default='../data/dblp/eval/rel.txt',
+    parser.add_argument('--eval_file', type=str, default='../data/cora/eval/label.txt',
                         help='evaluation file path.')
+    parser.add_argument("--load_model", type=str, default=False,
+                        help="whether to load model")
     parser.add_argument("--gpu", type=int, default=0,
                         help="which GPU to use")
     parser.add_argument('--log_level', default=20,
@@ -61,40 +54,36 @@ def parse_args():
                         help='save learned embedding to this file path.')
     # parser.add_argument('--no-cuda', action='store_true', default=False,
     #                     help='Disables CUDA training.')
-    parser.add_argument('--seed', type=int, default=72, help='Random seed.')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 
 
     # sample settings
+    parser.add_argument('--diffusion_threshold', default=20, type=int,
+                        help='threshold for diffusion')
     parser.add_argument('--neighbor_sample_size', default=30, type=int,
                         help='sample size for neighbor to be used in gcn')
-    parser.add_argument('--sample_size', default=1000, type=int,
+    parser.add_argument('--sample_size', default=200, type=int,
                         help='sample size for training data')
     parser.add_argument('--negative_sample_size', default=1, type=int,
                         help='negative sample / positive sample')
-    parser.add_argument('--sample_embed', default=2500, type=int,
+    parser.add_argument('--sample_embed', default=100, type=int,
                         help='sample size for embedding generation')
 
 
     # training settings
-    parser.add_argument('--sparse', type=int, default=0
-                        , help='GAT with sparse version or not.')
-    parser.add_argument('--epochs', type=int, default=100,
+    parser.add_argument('--epochs', type=int, default=2000,
                         help='Number of epochs to train.')
-    parser.add_argument('--lr', type=float, default=0.005,
+    parser.add_argument('--lr', type=float, default=0.0001,
                         help='Initial learning rate.')
     parser.add_argument('--weight_decay', type=float, default=5e-4,
                         help='Weight decay (L2 loss on parameters).')
-    parser.add_argument('--hidden', type=int, default=8,
-                        help='Number of hidden units.')
-    parser.add_argument('--nb_heads', type=int, default=8,
-                        help='Number of head attentions.')
-    parser.add_argument('--dropout', type=float, default=0.6,
+    parser.add_argument('--hidden', type=int, default=100,
+                        help='Number of hidden units, also the dimension of node representation after GCN.')
+    parser.add_argument('--dropout', type=float, default=0.3,
                         help='Dropout rate (1 - keep probability).')
-    parser.add_argument('--alpha', type=float, default=0.2,
-                        help='Alpha for the leaky_relu.')
     parser.add_argument('-early_stop', type=int, default=1,
                         help='whether to use early stop')
-    parser.add_argument('-patience', type=int, default=50,
+    parser.add_argument('-patience', type=int, default=1000,
                         help='used for early stop')
 
     # evluating settings
@@ -113,17 +102,21 @@ def parse_args():
 
 
 def evaluate(args, embedding, logger, repeat_times=5):
-    best_train_accs, best_test_accs, best_test_f1s = [], [], []
-    best_train_acc_epochs, best_test_acc_epochs, best_test_f1_epochs = [], [], []
-    data = construct_feature(args.label_data, embedding)
-    split = int(len(args.label_data) / repeat_times)
+    best_train_accs, best_test_accs = [], []
+    best_train_acc_epochs, best_test_acc_epochs = [], []
+    if args.use_superv:
+        train = construct_feature(args.train, embedding)
+        test = construct_feature(args.test, embedding)
+    else:
+        data = construct_feature(args.label_data, embedding)
+        split = int(len(args.label_data) / repeat_times)
 
     for i in range(repeat_times):
-
-        p1, p2 = i*split, (i+1)*split
-        test = data[p1:p2, :]
-        train1, train2 = data[:p1, :], data[p2:, :]
-        train = np.concatenate([train1, train2])
+        if not args.use_superv:
+            p1, p2 = i*split, (i+1)*split
+            test = data[p1:p2, :]
+            train1, train2 = data[:p1, :], data[p2:, :]
+            train = np.concatenate([train1, train2])
 
         X_train, y_train = torch.FloatTensor(train[:, :-1]), torch.LongTensor(train[:, -1])
         X_test, y_test = torch.FloatTensor(test[:, :-1]), torch.LongTensor(test[:, -1])
@@ -183,21 +176,17 @@ def evaluate(args, embedding, logger, repeat_times=5):
         best_test_accs.append(best_test_acc)
         best_train_acc_epochs.append(best_train_acc_epoch)
         best_test_acc_epochs.append(best_test_acc_epoch)
-        best_test_f1s.append(best_test_f1)
-        best_test_f1_epochs.append(best_test_f1_epoch)
 
-    best_train_acc, best_train_acc_epoch, best_test_acc, best_test_acc_epoch, best_test_f1, best_test_f1_epoch= \
-        np.mean(best_train_accs), np.mean(best_train_acc_epochs), np.mean(best_test_accs), np.mean(best_test_acc_epochs), np.mean(best_test_f1s), np.mean(best_test_f1_epochs)
+    best_train_acc, best_train_acc_epoch, best_test_acc, best_test_acc_epoch = \
+        np.mean(best_train_accs), np.mean(best_train_acc_epochs), np.mean(best_test_accs), np.mean(best_test_acc_epochs)
     std = np.std(best_test_accs)
-    std_f1 = np.std(best_test_f1s)
-    logger.info('{}: best train acc={:.2f} @epoch:{:d}, best test acc={:.2f} += {:.2f}, @epoch:{:d}, best test f1={:.2f} += {:.2f}, @epoch:{:d}'.
-                format(args.eval_file, best_train_acc, int(best_train_acc_epoch), best_test_acc, std, int(best_test_acc_epoch), best_test_f1, std_f1, int(best_test_f1_epoch)))
-
+    logger.info('{}: best train acc={:.2f} @epoch:{:d}, best test acc={:.2f} += {:.2f} @epoch:{:d}'.
+                format(args.eval_file, best_train_acc, int(best_train_acc_epoch), best_test_acc, std, int(best_test_acc_epoch)))
 
     return best_train_acc, best_test_acc, std
 
 
-def train(args, model, data, log_dir, logger, optimizer=None):
+def train(args, model, Data, log_dir, logger, optimizer=None):
     if optimizer is None:
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
@@ -205,23 +194,12 @@ def train(args, model, data, log_dir, logger, optimizer=None):
     best_acc, best_epoch = 0, 0
     count = 0
     model.train()
-    features = data.features
-    if args.sparse:
-        adjs = data.adj
-    else:
-        adjs = torch.from_numpy(data.old_adj.todense())
 
     for epoch in range(1, args.epochs+1):
         losses = []
         optimizer.zero_grad()
-
-        # If data is too big, use sampled data to train: sampled_features, sampled_adjs
-        (sampled_features, sampled_adjs), (sampled_link_featuresL, sampled_link_featuresR), sampled_labels = data.sample('link', adjs)
-        loss = model(sampled_features, sampled_adjs, sampled_link_featuresL, sampled_link_featuresR, sampled_labels)
-
-        # If data is not too big, use whole data to train: features, adjs
-        # loss = model(features, adjs, sampled_link_featuresL, sampled_link_featuresR, sampled_labels)
-
+        (sampled_features, sampled_adj, prior), sampled_labels = Data.sample('link')
+        loss = model(sampled_features, sampled_adj, sampled_labels)
         loss.backward()
         optimizer.step()
 
@@ -236,30 +214,11 @@ def train(args, model, data, log_dir, logger, optimizer=None):
 
         if epoch % args.eval_every == 0:
             learned_embed = gensim.models.keyedvectors.Word2VecKeyedVectors(model.nembed)
-
-            # If data is not too big, use whole data to get embeddings
-            embedding = model.generate_embedding(features, adjs)
-            learned_embed.add([str(i) for i in range(embedding.shape[0])], embedding)
-
-            # If data is too big, Sample data to get embedding
-            # for i in range(0, len(args.nodes), args.sample_embed):
-            #     nodes = args.nodes[i:i+args.sample_embed]
-            #     test_features = features[nodes]
-            #     test_adjs = torch.zeros((len(nodes), len(nodes)))
-            #     for i, n in enumerate(nodes):
-            #         test_adjs[i] = adjs[n][nodes]
-            #     embedding = model.generate_embedding(test_features, test_adjs)
-            #     learned_embed.add([str(node) for node in nodes], embedding)
-
-            # If data is too big, use only test data to get embedding
-            # test_features = features[args.nodes]
-            # test_adjs = torch.zeros((len(args.nodes), len(args.nodes)))
-            # for i, n in enumerate(args.nodes):
-            #     test_adjs[i] = adjs[n][args.nodes]
-            # embedding = model.generate_embedding(test_features, test_adjs)
-            # learned_embed.add([str(i) for i in args.nodes], embedding)
-
-
+            for i in range(0, len(args.nodes), args.sample_embed):
+                nodes = args.nodes[i:i+args.sample_embed]
+                features, adj, _ = Data.sample_subgraph(nodes, False)
+                embedding = model.generate_embedding(features, adj)
+                learned_embed.add([str(node) for node in nodes], embedding)
             train_acc, test_acc, std = evaluate(args, learned_embed, logger)
             duration = time.time() - t
             logger.info('Epoch: {:04d} '.format(epoch)+
@@ -270,7 +229,6 @@ def train(args, model, data, log_dir, logger, optimizer=None):
             if test_acc > best_acc:
                 best_acc = test_acc
                 best_epoch = epoch
-                save_embedding(learned_embed, os.path.join(log_dir, 'embedding.bin'))
                 save_checkpoint({
                     'args': args,
                     'model': model.state_dict(),
@@ -286,29 +244,14 @@ def train(args, model, data, log_dir, logger, optimizer=None):
                     break
 
     logger.info(f'best test acc={best_acc:.2f} @ epoch:{int(best_epoch):d}')
+
     if args.save_emb:
         learned_embed = gensim.models.keyedvectors.Word2VecKeyedVectors(model.nembed)
-        # If data is not too big, use whole data to get embeddings
-        embedding = model.generate_embedding(features, adjs)
-        learned_embed.add([str(i) for i in range(embedding.shape[0])], embedding)
-
-        # If data is too big, Sample data to get embedding
-        # for i in range(0, len(args.nodes), args.sample_embed):
-        #     nodes = args.nodes[i:i+args.sample_embed]
-        #     test_features = features[nodes]
-        #     test_adjs = torch.zeros((len(nodes), len(nodes)))
-        #     for i, n in enumerate(nodes):
-        #         test_adjs[i] = adjs[n][nodes]
-        #     embedding = model.generate_embedding(test_features, test_adjs)
-        #     learned_embed.add([str(node) for node in nodes], embedding)
-
-        # If data is too big, use only test data to get embedding
-        # test_features = features[args.nodes]
-        # test_adjs = torch.zeros((len(args.nodes), len(args.nodes)))
-        # for i, n in enumerate(args.nodes):
-        #     test_adjs[i] = adjs[n][args.nodes]
-        # embedding = model.generate_embedding(test_features, test_adjs)
-        # learned_embed.add([str(i) for i in args.nodes], embedding)
+        for i in range(0, len(args.nodes), args.sample_embed):
+            nodes = args.nodes[i:i + args.sample_embed]
+            features, adj, _ = Data.sample_subgraph(nodes, False)
+            embedding = model.generate_embedding(features, adj)
+            learned_embed.add([str(node) for node in nodes], embedding)
         save_embedding(learned_embed, args.save_emb_file, binary=(os.path.splitext(args.save_emb_file)[1]))
 
     return best_acc
@@ -326,15 +269,16 @@ if __name__ == '__main__':
     # torch.manual_seed(args.seed)
     # torch.cuda.manual_seed(args.seed)
 
+    # Load data
     if not args.eval_file:
-        args.eval_file = f'../data/{os.path.basename(args.dataset)}/eval/rel.txt'
+        args.eval_file = f'../data/{args.dataset}/eval/rel.txt'
     labels, labeled_data = set(), []
     nodes = set()
     with open(args.eval_file, 'r') as lf:
         for line in lf:
             if line.rstrip() == 'test':
                 continue
-            line = line.rstrip().split('\t')
+            line = line.rstrip().split()
             if len(line) == 3:
                 data1, data2, label = line[0], line[1], int(line[2])
                 labeled_data.append((data1, data2, label))
@@ -351,10 +295,10 @@ if __name__ == '__main__':
     args.output_dim = len(labels)
 
     args.use_superv = 0
-    Data = SupDataset(args, args.dataset)
+    Data = Dataset(args, args.dataset)
     args.feature_len = Data.feature_len
     args.content_len = Data.content_len
-    args.num_node, args.num_link = Data.num_node, Data.num_link
+    args.num_node, args.num_link, args.num_diffusion = Data.num_node, Data.num_link, Data.num_diff
 
 
     # Initialize logger
@@ -375,25 +319,22 @@ if __name__ == '__main__':
     logger.setLevel(args.log_level)
 
     # Model and optimizer
-    if args.sparse:
-        model = SpGAT(device=args.device,
-                    nfeat=args.feature_len,
-                    nhid=args.hidden,
-                    output_dim=args.output_dim,
-                    dropout=args.dropout,
-                    nheads=args.nb_heads,
-                    alpha=args.alpha)
-    else:
-        model = GAT(device=args.device,
-                    nfeat=args.feature_len,
-                    nhid=args.hidden,
-                    output_dim=args.output_dim,
-                    dropout=args.dropout,
-                    nheads=args.nb_heads,
-                    alpha=args.alpha)
-
+    model = GCNBaseline(device=args.device,
+                       nfeat=args.feature_len,
+                       nhid=args.hidden,
+                       dropout=args.dropout)
     model.to(args.device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+    if args.load_model:
+        if os.path.isfile(args.load_model):
+            checkpoint = torch.load(args.load_model)
+            model.load_state_dict(checkpoint['model'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            logger.info("loaded checkpoint '{}' ".format(args.load_model))
+        else:
+            logger.error("no checkpoint found at '{}'".format(args.load_model))
+            exit(1)
 
     # Train model
     t_total = time.time()

@@ -43,7 +43,7 @@ Input file needed: node_features_train.csv, link.csv. You can change the link fi
 - Example Command for for learning embeddings is: 
 ```
 cd src
-python graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt --save_emb 1 --save_emb_file ../data/cora/embed/graphsage_vec_nc.txt
+python Graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt --save_emb 1 --save_emb_file ../data/cora/embed/graphsage_vec_lp.txt
 ```
 
 - Here, you can have a general idea of the model's performance by inputting the evaluation files eval_rel.txt or eval/label.txt, or you can also input fake ones, and evaluate the learned embeddings more formally as following.
@@ -80,17 +80,21 @@ python eval.py --type lp --embedding_file ../data/cora/embed/tadw_cora_vec.txt -
 - Code from ```Xingyu Fu```
 - Contact: ```xingyuf2@illinois.edu```
 
-Example Command for Label Propagation: 
+- Example Command for for learning embeddings is: 
 ```
 cd src
-python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt --sample_size 2000
+python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/labels.txt --save_emb 1 --save_emb_file ../data/cora/embed/gat_vec_nc.txt --sample_size 2000
 ```
 
-Example Command for Node Classification: 
+- Here, you can have a general idea of the model's performance by inputting the evaluation files eval_rel.txt or eval/label.txt, or you can also input fake ones, and evaluate the learned embeddings more formally as following.
+
+- Example Command for Node Classification & Example Command for Label Propagation respectively: 
 ```
 cd src
-python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/label.txt
+python eval.py --type nc --embedding_file ../data/cora/embed/gat_vec_nc.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/labels.txt
+python eval.py --type lp --embedding_file ../data/cora/embed/gat_vec_lp.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt
 ```
+
 
 4. #### planetoid
 
