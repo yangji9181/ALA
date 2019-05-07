@@ -45,8 +45,13 @@ def parse_args():
                         help='suffix append to log dir')
     parser.add_argument('--log_every', type=int, default=100,
                         help='log results every epoch.')
-    parser.add_argument('--save_every', type=int, default=100,
+    parser.add_argument('--eval_every', type=int, default=100,
                         help='save learned embedding every epoch.')
+
+    parser.add_argument('--save_emb', type=int, default=1,
+                        help='save learned embedding after training or not.')
+    parser.add_argument('--save_emb_file', type=str, default='../data/cora/embed/graphsage_vec_nc.txt',
+                        help='save learned embedding to this file path.')
     # parser.add_argument('--no-cuda', action='store_true', default=False,
     #                     help='Disables CUDA training.')
     parser.add_argument('--seed', type=int, default=42, help='Random seed.')
@@ -207,7 +212,7 @@ def train(args, model, Data, log_dir, logger, optimizer=None):
             msg += 'loss: {:.4f}\t'.format(loss)
             logger.info(msg+' time: {:d}s '.format(int(duration)))
 
-        if epoch % args.save_every == 0:
+        if epoch % args.eval_every == 0:
             learned_embed = gensim.models.keyedvectors.Word2VecKeyedVectors(model.nembed)
             for i in range(0, len(args.nodes), args.sample_embed):
                 nodes = args.nodes[i:i+args.sample_embed]
@@ -224,7 +229,6 @@ def train(args, model, Data, log_dir, logger, optimizer=None):
             if test_acc > best_acc:
                 best_acc = test_acc
                 best_epoch = epoch
-                save_embedding(learned_embed, os.path.join(log_dir, 'embedding.bin'))
                 save_checkpoint({
                     'args': args,
                     'model': model.state_dict(),
@@ -234,12 +238,22 @@ def train(args, model, Data, log_dir, logger, optimizer=None):
                 count = 0
             else:
                 if args.early_stop:
-                    count += args.save_every
+                    count += args.eval_every
                 if count >= args.patience:
                     logger.info('early stopped!')
                     break
 
     logger.info(f'best test acc={best_acc:.2f} @ epoch:{int(best_epoch):d}')
+
+    if args.save_emb:
+        learned_embed = gensim.models.keyedvectors.Word2VecKeyedVectors(model.nembed)
+        for i in range(0, len(args.nodes), args.sample_embed):
+            nodes = args.nodes[i:i + args.sample_embed]
+            features, adj, _ = Data.sample_subgraph(nodes, False)
+            embedding = model.generate_embedding(features, adj)
+            learned_embed.add([str(node) for node in nodes], embedding)
+        save_embedding(learned_embed, args.save_emb_file, binary=(os.path.splitext(args.save_emb_file)[1]))
+
     return best_acc
 
 

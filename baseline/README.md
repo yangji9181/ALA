@@ -38,21 +38,23 @@ This project is based on ```python>=3.6``` and ```pytorch>=0.4```.
 
 - Code from ```https://github.com/JieyuZ2/RELEARN```
 
-Input file needed: node_features_train.csv, link.csv, eval_rel.txt or eval/label.txt. 
+Input file needed: node_features_train.csv, link.csv. You can change the link file for different evaluations.
 
-Example Command for Label Propagation: 
+- Example Command for for learning embeddings is: 
 ```
 cd src
-python graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt
-
-python graphsage.py --dataset ../data/dblp/ --eval_file ../data/dblp/eval/rel.txt
+python graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt --save_emb 1 --save_emb_file ../data/cora/embed/graphsage_vec_nc.txt
 ```
 
-Example Command for Node Classification: 
+- Here, you can have a general idea of the model's performance by inputting the evaluation files eval_rel.txt or eval/label.txt, or you can also input fake ones, and evaluate the learned embeddings more formally as following.
+
+- Example Command for Node Classification & Example Command for Label Propagation respectively: 
 ```
 cd src
-python graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/label.txt
+python eval.py --type nc --embedding_file ../data/cora/embed/graphsage_vec_nc.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/labels.txt
+python eval.py --type lp --embedding_file ../data/cora/embed/graphsage_vec_lp.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt
 ```
+
 
 2. #### TADW
 ---------------
@@ -68,6 +70,7 @@ Here, the input label file is not important and output is path to the learned em
 
 - Example Command for Node Classification & Example Command for Label Propagation respectively: 
 ```
+cd src
 python eval.py --type nc --embedding_file ../data/cora/embed/tadw_cora_vec.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/labels.txt
 python eval.py --type lp --embedding_file ../data/cora/embed/tadw_cora_vec.txt --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt
 ```
