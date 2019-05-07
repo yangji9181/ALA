@@ -106,8 +106,8 @@ python eval.py --type lp --embedding_file ../data/cora/embed/gat_vec_lp.txt --da
 
 Example Command:
 ```
-cd planetoid_edge
-python test_ind.py --rel_train_path ../data/cora/rel.txt --rel_test_path ../data/cora/eval/rel.txt --embedding_path ../data/cora/embed/planetoid_vec_lp.txt
+cd src/planetoid_edge
+python test_ind.py --rel_train_path ../../data/cora/rel.txt --rel_test_path ../../data/cora/eval/rel.txt --embedding_path ../../data/cora/embed/planetoid_vec_lp.txt
 ```
 
 5. #### CANE
@@ -119,12 +119,12 @@ python test_ind.py --rel_train_path ../data/cora/rel.txt --rel_test_path ../data
 
 Example Command:
 ```
-cd CANE/code
+cd src/CANE/code
 python train.py
 ```
 and in ```train.py```, write 
 ```
-save_embed_file = '../data/cora/embed/cane_vec_lp.txt'
+save_embed_file = '../../data/cora/embed/cane_vec_lp.txt'
 ```
 
 6. #### STNE
