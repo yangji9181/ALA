@@ -111,16 +111,25 @@ sh train_planetoid.sh
 
 - Code from ```https://github.com/thunlp/CANE.git```
 
+- Change your input file and output embedding file in ```CANE/code/train.py```. Then perform evaluation on the learned embedding as in TADW.
+
 Example Command:
 ```
-python3 run.py --dataset cora --gpu 0  --ratio 0.55 --rho 1.0,0.3,0.3
+python train.py
+```
+and in ```train.py```, write 
+```
+save_embed_file = '../data/cora/embed/cane_vec_lp.txt'
 ```
 
 6. #### STNE
 
-- Code from original authors, and contained in zip.
+- Code comes from original authors.
+
+- You can change input in src/STNE.py and output the embedding to designated location. Then perform evaluation on the learned embedding as in TADW.
 
 Example Command:
 ```
-python main.py
+cd src
+python STNE.py
 ```

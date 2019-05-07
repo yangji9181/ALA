@@ -36,7 +36,7 @@ def parse_args():
                         help='dataset name.')
     parser.add_argument('--eval_file', type=str, default='../data/cora/eval/label.txt',
                         help='evaluation file path.')
-    parser.add_argument('--embedding_file', type=str, default='/home/jiaruizou/research/XINGYU/graph_sample/OpenNE/tadw_cora_vec.txt',
+    parser.add_argument('--embedding_file', type=str, default='../data/cora/embed/tadw_cora_vec.txt',
                         help='learned embedding file path.')
     parser.add_argument("--load_model", type=str, default=False,
                         help="whether to load model")
@@ -155,12 +155,83 @@ def evaluate_lp(args, data, logger, repeat_times=5):
     return best_train_acc, best_test_acc, std
 
 
-def evaluate_nc(args, data, logger):
-    X, Y = data[:, :-1], data[:, -1]
-    print("Training classifier using {:.2f}% nodes...".format(
-        args.clf_ratio * 100))
-    clf = Classifier(clf=LogisticRegression())
-    clf.split_train_evaluate(X, Y, args.clf_ratio)
+def evaluate_nc(args, data, logger, repeat_times=5):
+    X, Y_all = data[:, :-1], data[:, -1]
+
+    best_train_accs, best_test_accs, best_test_f1s = [], [], []
+    best_train_acc_epochs, best_test_acc_epochs, best_test_f1_epochs = [], [], []
+
+    split = int(len(args.label_data) / repeat_times)
+
+    for i in range(repeat_times):
+        p1, p2 = i * split, (i + 1) * split
+        test = data[p1:p2, :]
+        train1, train2 = data[:p1, :], data[p2:, :]
+        train = np.concatenate([train1, train2])
+
+        X_train, y_train = train[:, :-1], train[:, -1]
+        X_test, y_test = test[:, :-1], test[:, -1]
+        dataloader = DataLoader(EvaDataset(X_train, y_train), batch_size=args.batch_size_eval, shuffle=True)
+
+        kwargs = {
+            'input_dim': X_train.size(1),
+            'hidden_dim': args.hidden_eval,
+            'output_dim': args.output_dim
+        }
+        model = Classifier(clf=LogisticRegression())
+
+        best_test_acc, best_train_acc = 0, 0
+        best_test_acc_epoch, best_train_acc_epoch = 0, 0
+        best_test_f1 = 0
+        best_test_f1_epoch = 0
+        count = 0
+        for epoch in range(args.epochs_eval):
+
+            model.train(X_train, y_train, Y_all)
+            test_acc, f1 = model.evaluate(X_test, y_test, average='micro')
+            f1 *= 100
+            test_acc *= 100
+            if test_acc > best_test_acc:
+                best_test_acc = test_acc
+                best_test_acc_epoch = epoch + 1
+                count = 0
+            else:
+                count += 1
+                if count >= args.patience_eval:
+                    break
+            if f1 > best_test_f1:
+                best_test_f1 = f1
+                best_test_f1_epoch = epoch + 1
+
+            train_acc, _ = model.predict(X_train, y_train)
+            train_acc *= 100
+            if train_acc > best_train_acc:
+                best_train_acc = train_acc
+                best_train_acc_epoch = epoch + 1
+
+            print('\repoch {}/{} train acc={:.4f}, test acc={:.4f}, test f1={:.4f}, best train acc={:.4f} @epoch:{:d}, best test acc={:.4f} @epoch:{:d}, best test f1={:.4f} @epoch:{:d}'.
+                  format(epoch + 1, args.epochs_eval, train_acc, test_acc, f1, best_train_acc, best_train_acc_epoch, best_test_acc, best_test_acc_epoch, best_test_f1, best_test_f1_epoch), end='')
+            sys.stdout.flush()
+
+        print('')
+        best_train_accs.append(best_train_acc)
+        best_test_accs.append(best_test_acc)
+        best_train_acc_epochs.append(best_train_acc_epoch)
+        best_test_acc_epochs.append(best_test_acc_epoch)
+        best_test_f1s.append(best_test_f1)
+        best_test_f1_epochs.append(best_test_f1_epoch)
+
+    best_train_acc, best_train_acc_epoch, best_test_acc, best_test_acc_epoch, best_test_f1, best_test_f1_epoch = \
+        np.mean(best_train_accs), np.mean(best_train_acc_epochs), np.mean(best_test_accs), np.mean(
+            best_test_acc_epochs), np.mean(best_test_f1s), np.mean(best_test_f1_epochs)
+    std = np.std(best_test_accs)
+    std_f1 = np.std(best_test_f1s)
+    logger.info(
+        '{}: best train acc={:.2f} @epoch:{:d}, best test acc={:.2f} += {:.2f}, @epoch:{:d}, best test f1={:.2f} += {:.2f}, @epoch:{:d}'.
+        format(args.eval_file, best_train_acc, int(best_train_acc_epoch), best_test_acc, std, int(best_test_acc_epoch),
+               best_test_f1, std_f1, int(best_test_f1_epoch)))
+
+    return best_train_acc, best_test_acc, std
 
 
 if __name__ == '__main__':
@@ -183,7 +254,7 @@ if __name__ == '__main__':
             if line.rstrip() == 'test':
                 continue
             line = line.rstrip().split()
-            if len(line) == 3:
+            if args.type == 'lp':
                 data1, data2, label = line[0], line[1], int(line[2])
                 labeled_data.append((data1, data2, label))
                 labels.add(label)
