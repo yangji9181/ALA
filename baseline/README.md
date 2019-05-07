@@ -40,7 +40,7 @@ This project is based on ```python>=3.6``` and ```pytorch>=0.4```.
 
 Input file needed: node_features_train.csv, link.csv. You can change the link file for different evaluations.
 
-- Example Command for for learning embeddings is: 
+- Example Command for learning embeddings is: 
 ```
 cd src
 python Graphsage.py --dataset ../data/cora/ --eval_file ../data/cora/eval/rel.txt --save_emb 1 --save_emb_file ../data/cora/embed/graphsage_vec_lp.txt
@@ -80,7 +80,7 @@ python eval.py --type lp --embedding_file ../data/cora/embed/tadw_cora_vec.txt -
 - Code from ```Xingyu Fu```
 - Contact: ```xingyuf2@illinois.edu```
 
-- Example Command for for learning embeddings is: 
+- Example Command for learning embeddings is: 
 ```
 cd src
 python GAT.py --dataset ../data/cora/ --eval_file ../data/cora/eval/labels.txt --save_emb 1 --save_emb_file ../data/cora/embed/gat_vec_nc.txt --sample_size 2000
@@ -98,23 +98,28 @@ python eval.py --type lp --embedding_file ../data/cora/embed/gat_vec_lp.txt --da
 
 4. #### planetoid
 
-- Code from ```Haonan Wang```
-- Contact: ```haonanw2@illinois.edu```
+- Code from ```Haonan Wang```. Contact: ```haonanw2@illinois.edu```
+
+- Unzip the zip folder first. 
+- Change your input file and output embedding file in ```planetoid_edge/test_ind.py```. Notice that ```rel_train_path``` has data in form of ```node_1  node_2  link_label```
+- Then perform evaluation on the learned embeddings as previous commands for TADW.
 
 Example Command:
 ```
 cd planetoid_edge
-sh train_planetoid.sh
+python test_ind.py --rel_train_path ../data/cora/rel.txt --rel_test_path ../data/cora/eval/rel.txt --embedding_path ../data/cora/embed/planetoid_vec_lp.txt
 ```
 
 5. #### CANE
 
 - Code from ```https://github.com/thunlp/CANE.git```
 
-- Change your input file and output embedding file in ```CANE/code/train.py```. Then perform evaluation on the learned embedding as in TADW.
+
+- Unzip the zip folder first. Change your input file and output embedding file in ```CANE/code/train.py```. Then perform evaluation on the learned embeddings as previous commands for TADW.
 
 Example Command:
 ```
+cd CANE/code
 python train.py
 ```
 and in ```train.py```, write 
@@ -126,7 +131,7 @@ save_embed_file = '../data/cora/embed/cane_vec_lp.txt'
 
 - Code comes from original authors.
 
-- You can change input in src/STNE.py and output the embedding to designated location. Then perform evaluation on the learned embedding as in TADW.
+- You can change input in src/STNE.py and output the embedding to designated location. Then perform evaluation on the learned embedding as previous commands for TADW.
 
 Example Command:
 ```

@@ -270,7 +270,6 @@ def train(args, model, data, log_dir, logger, optimizer=None):
             if test_acc > best_acc:
                 best_acc = test_acc
                 best_epoch = epoch
-                save_embedding(learned_embed, os.path.join(log_dir, 'embedding.bin'))
                 save_checkpoint({
                     'args': args,
                     'model': model.state_dict(),
@@ -309,7 +308,7 @@ def train(args, model, data, log_dir, logger, optimizer=None):
         #     test_adjs[i] = adjs[n][args.nodes]
         # embedding = model.generate_embedding(test_features, test_adjs)
         # learned_embed.add([str(i) for i in args.nodes], embedding)
-        save_embedding(learned_embed, args.save_emb_file, binary=(os.path.splitext(args.save_emb_file)[1]))
+        save_embedding(learned_embed, args.save_emb_file, binary=(os.path.splitext(args.save_emb_file)[1]== 'bin'))
 
     return best_acc
 

@@ -3,7 +3,7 @@ import numpy
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import f1_score
 from sklearn.preprocessing import MultiLabelBinarizer
-
+from sklearn.metrics import accuracy_score
 import math
 import gensim
 import torch
@@ -69,19 +69,13 @@ class Classifier(object):
         Y = self.binarizer.transform(Y)
         self.clf.fit(X, Y)
 
-    def evaluate(self, X, Y):
+    def evaluate(self, X, Y, average='micro'):
         top_k_list = [len(l) for l in Y]
         Y_ = self.predict(X, top_k_list)
-        Y = self.binarizer.transform(Y)
-        averages = ["micro", "macro", "samples", "weighted"]
-        results = {}
-        for average in averages:
-            results[average] = f1_score(Y, Y_, average=average)
-        # print('Results, using embeddings of dimensionality', len(self.embeddings[X[0]]))
-        # print('-------------------')
-        print(results)
-        return results
-        # print('-------------------')
+        accu = accuracy_score(Y, self.binarizer.inverse_transform(Y_))
+        # averages = ["micro", "macro", "samples", "weighted"]
+        f1 = f1_score(self.binarizer.transform(Y), Y_, average=average)
+        return accu, f1
 
     def predict(self, X, top_k_list):
         X_ = numpy.asarray(X)

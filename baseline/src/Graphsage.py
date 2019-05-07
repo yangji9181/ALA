@@ -252,7 +252,7 @@ def train(args, model, Data, log_dir, logger, optimizer=None):
             features, adj, _ = Data.sample_subgraph(nodes, False)
             embedding = model.generate_embedding(features, adj)
             learned_embed.add([str(node) for node in nodes], embedding)
-        save_embedding(learned_embed, args.save_emb_file, binary=(os.path.splitext(args.save_emb_file)[1]))
+        save_embedding(learned_embed, args.save_emb_file, binary=(os.path.splitext(args.save_emb_file)[1] == 'bin'))
 
     return best_acc
 
