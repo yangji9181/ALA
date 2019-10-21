@@ -23,7 +23,7 @@ Markdown==3.0.1
 mkl-fft==1.0.6
 mkl-random==1.0.1
 multiprocess==0.70.6.1
-nltk==3.3
+nltk==3.4.5
 numpy==1.15.3
 olefile==0.46
 pathos==0.2.2.1
