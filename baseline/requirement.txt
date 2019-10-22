@@ -27,7 +27,7 @@ nltk==3.3
 numpy==1.15.3
 olefile==0.46
 pathos==0.2.2.1
-Pillow==5.3.0
+Pillow==6.2.0
 pox==0.2.4
 ppft==1.6.4.8
 protobuf==3.6.1
