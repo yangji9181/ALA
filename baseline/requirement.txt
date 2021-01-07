@@ -18,7 +18,7 @@ gensim==3.6.0
 grpcio==1.12.1
 idna==2.7
 jmespath==0.9.3
-lxml==4.2.5
+lxml==4.6.2
 Markdown==3.0.1
 mkl-fft==1.0.6
 mkl-random==1.0.1
