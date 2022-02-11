@@ -30,7 +30,7 @@ pathos==0.2.2.1
 Pillow==5.3.0
 pox==0.2.4
 ppft==1.6.4.8
-protobuf==3.6.1
+protobuf==3.15.0
 pycparser==2.19
 pymongo==3.7.2
 pyOpenSSL==18.0.0
